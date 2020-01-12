@@ -17,8 +17,16 @@ type filterHandler struct {
 }
 
 func (instance filterHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) (int, error) {
-	// Do not intercept if this is a websocket upgrade request.
-	if request.Method == "GET" && request.Header.Get("Upgrade") == "websocket" {
+	//Do path matching ahead of time to avoid errors in special proxy cases.
+	aheadPathMatch := false
+	for _, rule := range instance.rules {
+		if rule.path.MatchString(request.URL.Path) || rule.pathAndContentTypeCombination == "or" {
+			aheadPathMatch = true
+		}
+	}
+
+	// Do not intercept if this is a websocket upgrade request or path not matched.
+	if (!aheadPathMatch) || (request.Method == "GET" && request.Header.Get("Upgrade") == "websocket") {
 		return instance.next.ServeHTTP(writer, request)
 	}
 
